@@ -21,30 +21,26 @@ typedef struct
 typedef struct
 {
     int CO_CURSO;
-    int QUA_AL;    // Quantidade de Alunos
-    float *NT_GER; // Nota geral
-    float *NT_CE;  // Nota específica
-    float somaGer; // Soma Geral
-    float somaCe;  // Soma específica
-    int CAP;       // Capacidade dos vetores
-
+    int QUA_AL;
+    float *NT_GER;
+    float *NT_CE;
+    float somaGer;
+    float somaCe;
+    int CAP;
 } RegistroArq3;
 
 typedef struct
 {
-    int curso;         // chave
-    RegistroArq3 info; // dados
-    int usado;         // 0 = vazio; 1 = ocupado
-
+    int curso;
+    RegistroArq3 info;
+    int usado;
 } HashTab;
 
-// Função para chave Hash
 int hash(int x)
 {
     return (x % TAM_HASH + TAM_HASH) % TAM_HASH;
 }
 
-// Funções de comparação para qsort
 int compararPorCurso(const void *a, const void *b)
 {
     return ((RegistroArq1 *)a)->CO_CURSO - ((RegistroArq1 *)b)->CO_CURSO;
@@ -68,7 +64,8 @@ int compararPorGrupo(const void *a, const void *b)
 float maiorGer(const RegistroArq3 *r)
 {
     float m = -1.0f;
-    for (int i = 0; i < r->QUA_AL; i++)
+    int i;
+    for (i = 0; i < r->QUA_AL; i++)
         if (r->NT_GER[i] > m)
             m = r->NT_GER[i];
     return m;
@@ -77,7 +74,8 @@ float maiorGer(const RegistroArq3 *r)
 float maiorCe(const RegistroArq3 *r)
 {
     float m = -1.0f;
-    for (int i = 0; i < r->QUA_AL; i++)
+    int i;
+    for (i = 0; i < r->QUA_AL; i++)
         if (r->NT_CE[i] > m)
             m = r->NT_CE[i];
     return m;
@@ -119,18 +117,19 @@ int cmpMaiorNotaPtr(const void *a, const void *b)
 
 RegistroArq1 *lerArq1(const char *nomeArquivo, int *tam)
 {
-    FILE *f = fopen(nomeArquivo, "r");
+    FILE *f;
+    RegistroArq1 *vet = NULL;
+    char linha[LINHA_MAX];
+    
+    f = fopen(nomeArquivo, "r");
     if (!f)
     {
         printf("Erro ao abrir %s\n", nomeArquivo);
         exit(1);
     }
 
-    RegistroArq1 *vet = NULL;
-    char linha[LINHA_MAX];
     *tam = 0;
-
-    fgets(linha, LINHA_MAX, f); // descarta cabeçalho
+    fgets(linha, LINHA_MAX, f);
 
     while (fgets(linha, LINHA_MAX, f))
     {
@@ -175,13 +174,13 @@ void initCursoInfo(RegistroArq3 *c, int co_curso)
 void inserirNotaTabela(int curso, float ntGer, float ntCe, HashTab *tabela)
 {
     int h = hash(curso);
+    RegistroArq3 *ci;
 
     while (tabela[h].usado && tabela[h].curso != curso)
     {
         h = (h + 1) % TAM_HASH;
     }
 
-    // Primeiro registro do curso
     if (!tabela[h].usado)
     {
         tabela[h].usado = 1;
@@ -189,9 +188,8 @@ void inserirNotaTabela(int curso, float ntGer, float ntCe, HashTab *tabela)
         initCursoInfo(&tabela[h].info, curso);
     }
 
-    RegistroArq3 *ci = &tabela[h].info;
+    ci = &tabela[h].info;
 
-    // Aumentar capacidade se necessário
     if (ci->QUA_AL == ci->CAP)
     {
         ci->CAP *= 2;
@@ -199,11 +197,8 @@ void inserirNotaTabela(int curso, float ntGer, float ntCe, HashTab *tabela)
         ci->NT_CE = realloc(ci->NT_CE, ci->CAP * sizeof(float));
     }
 
-    // Adicionar notas
     ci->NT_GER[ci->QUA_AL] = ntGer;
     ci->NT_CE[ci->QUA_AL] = ntCe;
-
-    // Atualizar estatísticas
     ci->somaGer += ntGer;
     ci->somaCe += ntCe;
     ci->QUA_AL++;
@@ -211,8 +206,12 @@ void inserirNotaTabela(int curso, float ntGer, float ntCe, HashTab *tabela)
 
 RegistroArq3 *lerArq3(const char *nomeArquivo, int *tam, HashTab *tabela)
 {
-
-    FILE *f = fopen(nomeArquivo, "r");
+    FILE *f;
+    int capacidade = 1000;
+    RegistroArq3 *vet;
+    char linha[LINHA_MAX];
+    
+    f = fopen(nomeArquivo, "r");
 
     if (!f)
     {
@@ -220,15 +219,19 @@ RegistroArq3 *lerArq3(const char *nomeArquivo, int *tam, HashTab *tabela)
         exit(1);
     }
 
-    int capacidade = 1000;
-    RegistroArq3 *vet = malloc(capacidade * sizeof(RegistroArq3));
-    char linha[LINHA_MAX];
+    vet = malloc(capacidade * sizeof(RegistroArq3));
     *tam = 0;
 
-    fgets(linha, LINHA_MAX, f); // descarta cabeçalho
+    fgets(linha, LINHA_MAX, f);
 
     while (fgets(linha, LINHA_MAX, f))
     {
+        char *token;
+        int col = 1;
+        int curso = 0;
+        float ntGer = -1;
+        float ntCe = -1;
+        
         if (*tam >= capacidade)
         {
             capacidade *= 2;
@@ -240,16 +243,10 @@ RegistroArq3 *lerArq3(const char *nomeArquivo, int *tam, HashTab *tabela)
             exit(1);
         }
 
-        char *token = strtok(linha, ";");
-        int col = 1;
-
-        int curso = 0;
-        float ntGer = -1;
-        float ntCe = -1;
+        token = strtok(linha, ";");
 
         while (token != NULL)
         {
-
             if (col == 2)
                 curso = atoi(token);
             if (col == 25)
@@ -262,7 +259,6 @@ RegistroArq3 *lerArq3(const char *nomeArquivo, int *tam, HashTab *tabela)
         }
 
         inserirNotaTabela(curso, ntGer, ntCe, tabela);
-
         (*tam)++;
     }
 
@@ -274,10 +270,8 @@ RegistroArq3 *lerArq3(const char *nomeArquivo, int *tam, HashTab *tabela)
     return vet;
 }
 
-// Busca binária por código de curso
 int buscarCurso(RegistroArq1 *vet, int tam, int codigoCurso)
 {
-
     int inicio = 0, fim = tam - 1;
     int encontrado = 0;
 
@@ -288,8 +282,6 @@ int buscarCurso(RegistroArq1 *vet, int tam, int codigoCurso)
         if (vet[meio].CO_CURSO == codigoCurso)
         {
             return meio;
-            encontrado = 1;
-            break;
         }
         else if (vet[meio].CO_CURSO < codigoCurso)
         {
@@ -301,10 +293,7 @@ int buscarCurso(RegistroArq1 *vet, int tam, int codigoCurso)
         }
     }
 
-    if (!encontrado)
-    {
-        return -1;
-    }
+    return -1;
 }
 
 int compararPorIESeCurso(const void *a, const void *b)
@@ -315,7 +304,6 @@ int compararPorIESeCurso(const void *a, const void *b)
     return ((RegistroArq1 *)a)->CO_CURSO - ((RegistroArq1 *)b)->CO_CURSO;
 }
 
-// Função auxiliar para comparar por UF e depois por Curso
 int compararPorUFeCurso(const void *a, const void *b)
 {
     int diffUF = ((RegistroArq1 *)a)->CO_UF_CURSO - ((RegistroArq1 *)b)->CO_UF_CURSO;
@@ -324,7 +312,6 @@ int compararPorUFeCurso(const void *a, const void *b)
     return ((RegistroArq1 *)a)->CO_CURSO - ((RegistroArq1 *)b)->CO_CURSO;
 }
 
-// Função auxiliar para comparar por Grupo e depois por Curso
 int compararPorGrupoeCurso(const void *a, const void *b)
 {
     int diffGrupo = ((RegistroArq1 *)a)->CO_GRUPO - ((RegistroArq1 *)b)->CO_GRUPO;
@@ -335,15 +322,13 @@ int compararPorGrupoeCurso(const void *a, const void *b)
 
 void listarCursosPorIES(RegistroArq1 *vet, int tam, int codigoIES)
 {
-    // Ordenar por IES e depois por Curso
+    int count = 0;
+    int inicio = 0, fim = tam - 1;
+    int indiceInicial = -1;
+    
     qsort(vet, tam, sizeof(RegistroArq1), compararPorIESeCurso);
 
     printf("\n--- Cursos da IES %d (Busca Binaria) ---\n", codigoIES);
-    int count = 0;
-
-    // Busca binária para encontrar primeiro registro
-    int inicio = 0, fim = tam - 1;
-    int indiceInicial = -1;
 
     while (inicio <= fim)
     {
@@ -366,7 +351,8 @@ void listarCursosPorIES(RegistroArq1 *vet, int tam, int codigoIES)
     if (indiceInicial != -1)
     {
         int ultimoCurso = -1;
-        for (int i = indiceInicial; i < tam && vet[i].CO_IES == codigoIES; i++)
+        int i;
+        for (i = indiceInicial; i < tam && vet[i].CO_IES == codigoIES; i++)
         {
             if (vet[i].CO_CURSO != ultimoCurso)
             {
@@ -385,15 +371,13 @@ void listarCursosPorIES(RegistroArq1 *vet, int tam, int codigoIES)
 
 void listarCursosPorUF(RegistroArq1 *vet, int tam, int codigoUF)
 {
-    // Ordenar por UF e depois por Curso
+    int count = 0;
+    int inicio = 0, fim = tam - 1;
+    int indiceInicial = -1;
+    
     qsort(vet, tam, sizeof(RegistroArq1), compararPorUFeCurso);
 
     printf("\n--- Cursos da UF %d (Busca Binaria) ---\n", codigoUF);
-    int count = 0;
-
-    // Busca binária para encontrar primeiro registro
-    int inicio = 0, fim = tam - 1;
-    int indiceInicial = -1;
 
     while (inicio <= fim)
     {
@@ -416,7 +400,8 @@ void listarCursosPorUF(RegistroArq1 *vet, int tam, int codigoUF)
     if (indiceInicial != -1)
     {
         int ultimoCurso = -1;
-        for (int i = indiceInicial; i < tam && vet[i].CO_UF_CURSO == codigoUF; i++)
+        int i;
+        for (i = indiceInicial; i < tam && vet[i].CO_UF_CURSO == codigoUF; i++)
         {
             if (vet[i].CO_CURSO != ultimoCurso)
             {
@@ -435,15 +420,13 @@ void listarCursosPorUF(RegistroArq1 *vet, int tam, int codigoUF)
 
 void listarCursosPorGrupo(RegistroArq1 *vet, int tam, int codigoGrupo)
 {
-    // Ordenar por Grupo e depois por Curso
+    int count = 0;
+    int inicio = 0, fim = tam - 1;
+    int indiceInicial = -1;
+    
     qsort(vet, tam, sizeof(RegistroArq1), compararPorGrupoeCurso);
 
     printf("\n--- Cursos do Grupo (Area) %d (Busca Binaria) ---\n", codigoGrupo);
-    int count = 0;
-
-    // Busca binária para encontrar primeiro registro
-    int inicio = 0, fim = tam - 1;
-    int indiceInicial = -1;
 
     while (inicio <= fim)
     {
@@ -466,7 +449,8 @@ void listarCursosPorGrupo(RegistroArq1 *vet, int tam, int codigoGrupo)
     if (indiceInicial != -1)
     {
         int ultimoCurso = -1;
-        for (int i = indiceInicial; i < tam && vet[i].CO_GRUPO == codigoGrupo; i++)
+        int i;
+        for (i = indiceInicial; i < tam && vet[i].CO_GRUPO == codigoGrupo; i++)
         {
             if (vet[i].CO_CURSO != ultimoCurso)
             {
@@ -515,7 +499,6 @@ void opcaoArquivo1(RegistroArq1 *arq1, int tam1)
 
         if (scanf("%d", &opcao) != 1)
         {
-            // Limpa o buffer em caso de entrada inválida
             while (getchar() != '\n')
                 ;
             printf("Entrada invalida!\n");
@@ -528,9 +511,9 @@ void opcaoArquivo1(RegistroArq1 *arq1, int tam1)
             printf("Digite o codigo do curso: ");
             if (scanf("%d", &codigo) == 1)
             {
-                int indice = buscarCurso(arq1, tam1, codigo);
-                // Ordenar por código de curso antes de buscar
+                int indice;
                 qsort(arq1, tam1, sizeof(RegistroArq1), compararPorCurso);
+                indice = buscarCurso(arq1, tam1, codigo);
                 if (indice != -1)
                     imprimeResultadoArq1(indice, arq1);
                 else
@@ -606,8 +589,8 @@ RegistroArq3 *buscarCursoHash(int curso, HashTab *tabela)
 
 void listarMediasNotas(int codigo, RegistroArq3 *arq3, int tam3, HashTab *tabela)
 {
-
     RegistroArq3 *ci = buscarCursoHash(codigo, tabela);
+    int i;
 
     if (!ci)
     {
@@ -616,7 +599,7 @@ void listarMediasNotas(int codigo, RegistroArq3 *arq3, int tam3, HashTab *tabela
     }
 
     printf("\nNotas do curso %d:\n", codigo);
-    for (int i = 0; i < ci->QUA_AL; i++)
+    for (i = 0; i < ci->QUA_AL; i++)
     {
         if (!(ci->NT_GER[i] <= 0 || ci->NT_CE <= 0))
             printf("GER: %.2f | ESP: %.2f\n", ci->NT_GER[i], ci->NT_CE[i]);
@@ -629,9 +612,12 @@ void listarMediasNotas(int codigo, RegistroArq3 *arq3, int tam3, HashTab *tabela
 
 void maioresNotas(int quantidade, HashTab *tabela, RegistroArq1 *arq1, int tam1)
 {
-    // Contar quantos cursos estão na tabela
     int count = 0;
-    for (int i = 0; i < TAM_HASH; i++)
+    int i, j, k;
+    HashTab **aux;
+    HashTab **resultado;
+    
+    for (i = 0; i < TAM_HASH; i++)
         if (tabela[i].usado)
             count++;
 
@@ -641,37 +627,30 @@ void maioresNotas(int quantidade, HashTab *tabela, RegistroArq1 *arq1, int tam1)
         return;
     }
 
-    // --- Criar vetor de ponteiros ---
-    HashTab **aux = malloc(count * sizeof(HashTab*));
-    int j = 0;
-    for (int i = 0; i < TAM_HASH; i++)
+    aux = malloc(count * sizeof(HashTab*));
+    j = 0;
+    for (i = 0; i < TAM_HASH; i++)
         if (tabela[i].usado)
             aux[j++] = &tabela[i];
 
-    // Vetor de resultados (até 2*N cursos)
-    HashTab **resultado = malloc(2 * quantidade * sizeof(HashTab*));
-    int k = 0;
+    resultado = malloc(2 * quantidade * sizeof(HashTab*));
+    k = 0;
 
-    // --- Ordenar por nota geral ---
     qsort(aux, count, sizeof(HashTab*), cmpNtGerPtr);
-    for (int i = 0; i < quantidade && i < count; i++)
+    for (i = 0; i < quantidade && i < count; i++)
         resultado[k++] = aux[i];
 
-    // --- Ordenar por nota específica ---
     qsort(aux, count, sizeof(HashTab*), cmpNtCePtr);
-    for (int i = 0; i < quantidade && i < count; i++)
+    for (i = 0; i < quantidade && i < count; i++)
         resultado[k++] = aux[i];
 
-    // --- Ordenar resultado pelo maior entre Geral/Específica ---
     qsort(resultado, k, sizeof(HashTab*), cmpMaiorNotaPtr);
 
-    // --- Imprimir ---
     printf("\n--- TOP %d MELHORES CURSOS ---\n", quantidade);
 
-    // Ordenar arq1 por CO_CURSO para busca binária
     qsort(arq1, tam1, sizeof(RegistroArq1), compararPorCurso);
 
-    for (int i = 0; i < quantidade && i < k; i++)
+    for (i = 0; i < quantidade && i < k; i++)
     {
         float nota = maiorNota(&resultado[i]->info);
         int idx = buscarCurso(arq1, tam1, resultado[i]->info.CO_CURSO);
@@ -684,12 +663,12 @@ void maioresNotas(int quantidade, HashTab *tabela, RegistroArq1 *arq1, int tam1)
     free(resultado);
 }
 
-
 void opcaoArquivo3(RegistroArq3 *arq3, int tam3, HashTab *tabela, RegistroArq1 *arq1, int tam1)
 {
     int opcao;
     int codigo;
     int quantidade;
+    
     do
     {
         printf("\n================= MENU =================\n");
@@ -703,13 +682,11 @@ void opcaoArquivo3(RegistroArq3 *arq3, int tam3, HashTab *tabela, RegistroArq1 *
         case 1:
             printf("Digite o Código do Curso que Deseja Verificar! \n");
             scanf("%d", &codigo);
-
             listarMediasNotas(codigo, arq3, tam3, tabela);
             break;
         case 2:
             printf("Quantas notas deseja mostrar? \n");
             scanf("%d", &quantidade);
-
             maioresNotas(quantidade, tabela, arq1, tam1);
             break;
         case 0:
@@ -724,24 +701,28 @@ void opcaoArquivo3(RegistroArq3 *arq3, int tam3, HashTab *tabela, RegistroArq1 *
 
 void inicializaHash(HashTab *tabela)
 {
-    for (int i = 0; i < TAM_HASH; i++)
+    int i;
+    for (i = 0; i < TAM_HASH; i++)
         tabela[i].usado = 0;
 }
 
 int main(void)
 {
     int tam1, tam3;
-    HashTab *tabela = malloc(TAM_HASH * sizeof(HashTab));
+    HashTab *tabela;
+    RegistroArq1 *arq1;
+    RegistroArq3 *arq3;
+    int numArquivo = 0;
+    
+    tabela = malloc(TAM_HASH * sizeof(HashTab));
     inicializaHash(tabela);
 
     printf("================= LEITURA DOS ARQUIVOS =================\n");
-    RegistroArq1 *arq1 = lerArq1("microdados2023_arq1.txt", &tam1);
-    RegistroArq3 *arq3 = lerArq3("microdados2023_arq3.txt", &tam3, tabela);
+    arq1 = lerArq1("microdados2023_arq1.txt", &tam1);
+    arq3 = lerArq3("microdados2023_arq3.txt", &tam3, tabela);
 
     printf("Registros arq1: %d\n", tam1);
     printf("Registros arq3: %d\n", tam3);
-
-    int numArquivo = 0;
 
     printf("Em qual arquivo quer mexer? \n 1 - arq1.txt \n 2 - arq3.txt \n");
 
